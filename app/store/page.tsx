@@ -7,13 +7,11 @@ import Footer from "../components/Footer";
 
 import { Search, Loader2, MessageCircle, X } from "lucide-react";
 import { createSlug, getProductImages } from "../lib/shared";
+import { supabase } from "../lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import ImageCarousel from "../components/ImageCarousel";
 
-// --- Configuration --- 
-// PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL BELOW
-const API_URL = "https://script.google.com/macros/s/AKfycbxWqHrzwXpo-YOc6MusfIrmJJMND14W6euIuwK0Dp4mgnVhDh5bQE8QUA-cm6cScEq-/exec";
 const FALLBACK_IMAGE = "https://i.ibb.co/zh1sb5mT/No-Image-for-this-Product-yet.png";
 
 interface Product {
@@ -30,15 +28,19 @@ export default function StorePage() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isNavigating, setIsNavigating] = useState(false);
 
-    // Fetch products from Google Sheets on mount
+    useEffect(() => {
+        setIsNavigating(false);
+    }, [selectedProduct]);
+
+    // Fetch products from Supabase on mount
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                // We append ?type=json to tell the script we want data, not the dashboard HTML
-                const response = await fetch(`${API_URL}?type=json`);
-                const data = await response.json();
-                setProducts(data);
+                const { data, error } = await supabase.from('products').select('*').order('id', { ascending: false });
+                if (error) throw error;
+                if (data) setProducts(data as Product[]);
             } catch (error) {
                 console.error("Failed to fetch products:", error);
             } finally {
@@ -47,6 +49,7 @@ export default function StorePage() {
         };
 
         fetchProducts();
+
     }, []);
 
     const filteredProducts = useMemo(() => {
@@ -108,7 +111,7 @@ export default function StorePage() {
                                 key={product.id}
                                 name={product.name}
                                 price={product.price}
-                                image={product.image || FALLBACK_IMAGE}
+                                image={product.image ? product.image.split(',')[0] : FALLBACK_IMAGE}
                                 tag={product.tag}
                                 href={`/store/${createSlug(product)}`}
                                 onClick={() => setSelectedProduct(product)}
@@ -159,28 +162,18 @@ export default function StorePage() {
                         >
                             <button
                                 onClick={() => setSelectedProduct(null)}
-                                className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                                className="absolute top-6 right-6 p-2 rounded-full bg-white/5 hover:bg-white/10 transition-colors z-50"
                             >
                                 <X className="h-6 w-6 text-white/60" />
                             </button>
 
                             <div className="mt-12">
                                 <div className="w-full rounded-2xl bg-white/5 overflow-hidden mb-8 border border-white/5 group relative aspect-square">
-                                    <Link href={`/store/${createSlug(selectedProduct)}`}>
-                                        <div className="absolute top-3 left-0 right-0 z-20 flex justify-center md:hidden pointer-events-none">
-                                            <span className="bg-black/40 backdrop-blur-md text-white/90 text-xs font-medium px-3 py-1 rounded-full border border-white/10">
-                                                Tap image to view full page
-                                            </span>
-                                        </div>
-                                        <ImageCarousel
-                                            images={getProductImages(selectedProduct).length > 0 ? getProductImages(selectedProduct) : [selectedProduct.image || FALLBACK_IMAGE]}
-                                            alt={selectedProduct.name}
-                                            className="h-full w-full"
-                                        />
-                                        <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hidden md:flex pointer-events-none">
-                                            <span className="bg-white/10 backdrop-blur-md text-white px-4 py-2 rounded-full text-sm font-medium">View Full Page</span>
-                                        </div>
-                                    </Link>
+                                    <ImageCarousel
+                                        images={getProductImages(selectedProduct).length > 0 ? getProductImages(selectedProduct) : [selectedProduct.image || FALLBACK_IMAGE]}
+                                        alt={selectedProduct.name}
+                                        className="h-full w-full"
+                                    />
                                 </div>
 
                                 <div className="space-y-6">
@@ -198,7 +191,18 @@ export default function StorePage() {
                                         </p>
                                     </div>
 
-                                    <div className="pt-6">
+                                    <div className="pt-6 flex flex-col gap-3">
+                                        <Link 
+                                            href={`/store/${createSlug(selectedProduct)}`}
+                                            onClick={() => setIsNavigating(true)}
+                                            className="w-full flex items-center justify-center gap-3 bg-white/10 hover:bg-white/20 text-white font-bold py-4 rounded-xl transition-all active:scale-[0.98]"
+                                        >
+                                            {isNavigating ? (
+                                                <><Loader2 className="w-5 h-5 animate-spin" /> Loading Details...</>
+                                            ) : (
+                                                'View Full Details'
+                                            )}
+                                        </Link>
                                         <a
                                             href={`https://wa.me/2347063638558?text=${encodeURIComponent(`I want this: ${selectedProduct.name} (${selectedProduct.price})`)}`}
                                             target="_blank"

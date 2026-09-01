@@ -5,8 +5,47 @@ import CategoryGrid from "./components/CategoryGrid";
 import ProductCard from "./components/ProductCard";
 import Footer from "./components/Footer";
 import { MoveRight } from "lucide-react";
+import { getProducts, createSlug, Product } from "./lib/api";
 
-export default function Home() {
+export default async function Home() {
+    let dbProducts: Product[] = [];
+    try {
+        const allProducts = await getProducts();
+        dbProducts = allProducts.slice(0, 3);
+    } catch (e) {
+        console.error("Failed to load trending products:", e);
+    }
+
+    const fallbackProducts = [
+        {
+            id: "fb-1",
+            name: "Sonic Blender 9000",
+            price: "from ₦48,000.00",
+            image: "https://i.ibb.co/qFpkYgCS/blender.jpg",
+            tag: "Best Seller"
+        },
+        {
+            id: "fb-2",
+            name: "Atyme 32-inch HD TV",
+            price: "from ₦178,000.00",
+            image: "https://i.ibb.co/TxK1TFJq/tv1.jpg",
+            tag: "New"
+        },
+        {
+            id: "fb-3",
+            name: "18-inch Solar Standing Fan",
+            price: "from ₦90,500.00",
+            image: "https://i.ibb.co/LDCvrCNs/Total-Solar-Energy-Solar-Standing-Fan.jpg",
+            tag: ""
+        }
+    ] as any[];
+
+    const displayProducts = [...dbProducts];
+    if (displayProducts.length < 3) {
+        const needed = 3 - displayProducts.length;
+        displayProducts.push(...fallbackProducts.slice(0, needed));
+    }
+
     return (
         <main className="relative bg-black min-h-screen">
 
@@ -114,23 +153,16 @@ export default function Home() {
                 <section id="products" className="container mx-auto px-6 py-20">
                     <SectionTitle title="Trending Now" subtitle="Customer Favorites" />
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        <ProductCard
-                            name="Sonic Blender 9000"
-                            price="from ₦48,000.00"
-                            image="https://i.ibb.co/qFpkYgCS/blender.jpg"
-                            tag="Best Seller"
-                        />
-                        <ProductCard
-                            name="Atyme 32-inch HD TV"
-                            price="from ₦178,000.00"
-                            image="https://i.ibb.co/TxK1TFJq/tv1.jpg"
-                            tag="New"
-                        />
-                        <ProductCard
-                            name="18-inch Solar Standing Fan"
-                            price="from ₦90,500.00"
-                            image="https://i.ibb.co/LDCvrCNs/Total-Solar-Energy-Solar-Standing-Fan.jpg"
-                        />
+                        {displayProducts.map((product) => (
+                            <ProductCard
+                                key={product.id}
+                                name={product.name}
+                                price={product.price}
+                                image={product.image ? product.image.split(',')[0] : "https://i.ibb.co/zh1sb5mT/No-Image-for-this-Product-yet.png"}
+                                tag={product.tag}
+                                href={`/store/${createSlug(product as any)}`}
+                            />
+                        ))}
                     </div>
                 </section>
 
