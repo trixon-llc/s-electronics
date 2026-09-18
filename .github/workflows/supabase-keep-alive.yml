@@ -1,0 +1,38 @@
+# .github/workflows/supabase-keep-alive.yml
+# Pings the Supabase keep-alive Edge Function every 4 days
+# to prevent the free-tier project from being paused after 7 days of inactivity.
+#
+# Required GitHub Repository Secrets:
+#   SUPABASE_PROJECT_URL  –  e.g. https://abcdefg.supabase.co
+#   SUPABASE_ANON_KEY     –  your project's anon/public key
+
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # Runs at 08:00 UTC every 4 days (1st, 5th, 9th, 13th, …)
+    - cron: "0 8 */4 * *"
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase keep-alive function
+        run: |
+          echo "🔔  Pinging Supabase keep-alive endpoint..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            "${{ secrets.SUPABASE_PROJECT_URL }}/functions/v1/keep-alive" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          echo "HTTP status: $RESPONSE"
+
+          if [ "$RESPONSE" -ne 200 ]; then
+            echo "❌  Keep-alive ping failed with status $RESPONSE"
+            exit 1
+          fi
+
+          echo "✅  Supabase project is alive!"
